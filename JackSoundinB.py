@@ -26,13 +26,14 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         self.setWindowTitle("JackSoundinB")
         
-        self.width = 500
+        self.width = 800
         self.setGeometry(2520, 1080, self.width, 500)
         #self.setIcon('icons/mix.png')
         
         self.iconSize = 80
         
         self.soundDirectory = sound_directory
+        self.imgDirectory = os.path.join(self.soundDirectory, 'icons')
         
         # Jackd players, in threads.
         self.maxPlayers = max_players
@@ -62,7 +63,7 @@ class MainWindow(QMainWindow):
         soundfiles = []
         for entry in files:
             if entry.is_dir():
-                print(f"Dir {entry.name}")
+                #print(f"Dir {entry.name}")
                 if entry.name != 'icons':
                     dirs.append(entry.name)
             else:
@@ -74,7 +75,7 @@ class MainWindow(QMainWindow):
             self.generateButtons(directory, soundfiles, layout)
         
         if dirs :
-            print(f"Processing dirs: {dirs}")
+            #print(f"Processing dirs: {dirs}")
             for new_dir in dirs:
                 self.walkInSoundBank( os.path.join(directory, new_dir), new_dir )
         
@@ -94,8 +95,7 @@ class MainWindow(QMainWindow):
         #print(f"Creating layout {layout}")
         grid = QGridLayout()
         
-        spacer = 6 # 6px between buttons
-        imgPerRow = int( self.width / ( self.iconSize + spacer ) )
+        imgPerRow = int( self.width / ( self.iconSize + 15 ) )
         
         #print(f"Generating button for directory\n  {current_path}")
         row = 0
@@ -105,15 +105,14 @@ class MainWindow(QMainWindow):
             soundfile = os.path.join(current_path, sf)
             #print(f"\tbutton {filename}")
             
-            
-            # Replace text by image if it exists
-            #print("\tChecking icon")
-            img = f"{self.soundDirectory}icons/{filename}.png"
-            if not os.path.exists(img):
-                img = f"{self.soundDirectory}icons/clear.png"
-                
             #print("\tCreating button")
             button = QToolButton()
+            
+            #print("\tChecking icon")
+            img = os.path.join( self.imgDirectory, f"{filename}.png" )
+            if not os.path.exists(img):
+                img = os.path.join( self.imgDirectory, 'clear.png' )
+                
             button.setIcon( QtGui.QIcon(img) )
             button.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
             #button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -129,7 +128,7 @@ class MainWindow(QMainWindow):
                 column = 0
                 row += 1
         
-        self.tabWidget.addNewTab(grid, layout)
+        self.tabWidget.addNewTab( grid, layout, self.imgDirectory )
         
     """
     Threads handles
@@ -152,9 +151,6 @@ class MainWindow(QMainWindow):
             else:
                 print('No free player for sound')
         return playSound
-    
-    def buttonOverSignal(self, message):
-        self.statusBar().showMessage(message)
 
 
 app = QApplication([])
