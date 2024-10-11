@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+
+#from os import walk
+import os
+#import os.path
+import sys
+
+from PyQt5 import QtGui
+from PyQt5 import QtCore
+from PyQt5.QtCore import QRunnable, QObject, QThreadPool
+from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
+
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget
+from PyQt5.QtWidgets import QTabWidget
+from PyQt5.QtWidgets import QLabel, QPushButton, QSizePolicy
+from PyQt5.QtWidgets import QVBoxLayout, QGridLayout
+from PyQt5.QtWidgets import QToolBar, QStatusBar
+
+
+from JackPlayer import *
+from DirsTabWidget import *
+
+        
+
+#class Window(QWidget):
+class MainWindow(QMainWindow):
+    def __init__(self, sound_directory, max_players=4):
+        super(MainWindow, self).__init__()
+        self.setWindowTitle("JackSoundinB")
+        
+        self.width = 500
+        self.setGeometry(2520, 1080, self.width, 500)
+        #self.setIcon('icons/mix.png')
+        
+        self.iconSize = 80
+        
+        self.soundDirectory = sound_directory
+        
+        # Jackd players, in threads.
+        self.maxPlayers = max_players
+        self.players = []
+        self.pool = QThreadPool.globalInstance()
+        
+        self.tabWidget = DirsTabWidget(self)
+        
+        self.walkInSoundBank(self.soundDirectory)
+        
+        self.setCentralWidget(self.tabWidget)
+        
+        self.show()
+    
+    
+    
+    """
+    Lists everything in soundbank directory except icons one, and
+    assume that all are sound files.
+    Each fil list is sent to generateButtons() method.
+    """
+    def walkInSoundBank(self, directory, layout='grid'):
+        assert os.path.isdir(directory)
+        
+        files = os.scandir(directory)
+        dirs = []
+        soundfiles = []
+        for entry in files:
+            if entry.is_dir():
+                print(f"Dir {entry.name}")
+                if entry.name != 'icons':
+                    dirs.append(entry.name)
+            else:
+                #print(f"File {entry.name}")
+                soundfiles.append(entry.name)
+        
+        if len(soundfiles) > 0:
+            #print(f"({directory}, {soundfiles}, {directory})")
+            self.generateButtons(directory, soundfiles, layout)
+        
+        if dirs :
+            print(f"Processing dirs: {dirs}")
+            for new_dir in dirs:
+                self.walkInSoundBank( os.path.join(directory, new_dir), new_dir )
+        
+        files.close()
+
+        
+    """
+    Create a grid layout filled with on button per file in a directory, then
+    add it in tab widget.
+    If an png with file's name exists, assign that image to button.
+    """
+    def generateButtons(self, current_path, filenames, layout):
+        coord = { 'grid': [0, 0] }
+        imgPerRow = 0
+        row = 0
+       
+        #print(f"Creating layout {layout}")
+        grid = QGridLayout()
+        
+        spacer = 6 # 6px between buttons
+        imgPerRow = int( self.width / ( self.iconSize + spacer ) )
+        
+        #print(f"Generating button for directory\n  {current_path}")
+        row = 0
+        column = 0
+        for sf in filenames:
+            filename,ext = os.path.splitext( sf )   
+            #soundfile = current_path + sf
+            soundfile = os.path.join(current_path, sf)
+            #print(f"\tbutton {filename}")
+            
+            
+            # Replace text by image if it exists
+            #print("\tChecking icon")
+            img = f"{self.soundDirectory}icons/{filename}.png"
+            if os.path.exists(img):
+                filename = ''
+            else:
+                img = f"{self.soundDirectory}icons/clear.png"
+                
+            #print("\tCreating button")
+            button = QPushButton(filename)
+            button.setIcon( QtGui.QIcon(img) )
+            button.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
+            #button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            button.clicked.connect( self.playSoundSignal(soundfile) )
+            
+            #print(f"\tAdd to layout '{layout}'")
+            grid.addWidget(button, row, column)
+
+            # Adapt grid to window width
+            column += 1
+            if column >= imgPerRow:
+                column = 0
+                row += 1
+        
+        self.tabWidget.addNewTab(grid, layout)
+        
+    """
+    Threads handles
+    """
+    def startedPlayer(self, n):
+        print(f"Started player {n}")
+        self.players.append(n)
+    def finishedPlayer(self, n):
+        print(f"Finished player {n}")
+        self.players.remove(n)
+    
+    def playSoundSignal(self, soundfile):
+        def playSound():
+            nextPlayer = len(self.players)
+            if nextPlayer < self.maxPlayers:
+                player = JackPlayer(nextPlayer, soundfile)
+                player.signals.started.connect(self.startedPlayer)
+                player.signals.completed.connect(self.finishedPlayer)
+                self.pool.start(player)
+            else:
+                print('No free player for sound')
+        return playSound
+    
+    def buttonOverSignal(self, message):
+        self.statusBar().showMessage(message)
+
+
+app = QApplication([])
+w = MainWindow('/home/luvwahraan/NFS/Musique/SoundBank/')
+app.exec()
+
+
