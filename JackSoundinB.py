@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
-#from os import walk
 import os
-#import os.path
 import sys
 
 from PyQt5 import QtGui
@@ -12,9 +10,9 @@ from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget
 from PyQt5.QtWidgets import QTabWidget
-from PyQt5.QtWidgets import QLabel, QPushButton, QSizePolicy
+from PyQt5.QtWidgets import QLabel, QSizePolicy
 from PyQt5.QtWidgets import QVBoxLayout, QGridLayout
-from PyQt5.QtWidgets import QToolBar, QStatusBar
+from PyQt5.QtWidgets import QToolBar, QStatusBar, QToolButton
 
 
 from JackPlayer import *
@@ -103,8 +101,7 @@ class MainWindow(QMainWindow):
         row = 0
         column = 0
         for sf in filenames:
-            filename,ext = os.path.splitext( sf )   
-            #soundfile = current_path + sf
+            filename,ext = os.path.splitext( sf )
             soundfile = os.path.join(current_path, sf)
             #print(f"\tbutton {filename}")
             
@@ -112,17 +109,16 @@ class MainWindow(QMainWindow):
             # Replace text by image if it exists
             #print("\tChecking icon")
             img = f"{self.soundDirectory}icons/{filename}.png"
-            if os.path.exists(img):
-                filename = ''
-            else:
+            if not os.path.exists(img):
                 img = f"{self.soundDirectory}icons/clear.png"
                 
             #print("\tCreating button")
-            button = QPushButton(filename)
+            button = QToolButton()
             button.setIcon( QtGui.QIcon(img) )
             button.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
             #button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             button.clicked.connect( self.playSoundSignal(soundfile) )
+            button.setToolTip( filename )
             
             #print(f"\tAdd to layout '{layout}'")
             grid.addWidget(button, row, column)
