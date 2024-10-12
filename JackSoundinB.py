@@ -88,14 +88,14 @@ class MainWindow(QMainWindow):
     If an png with file's name exists, assign that image to button.
     """
     def generateButtons(self, current_path, filenames, layout):
-        coord = { 'grid': [0, 0] }
-        imgPerRow = 0
+        #coord = { 'grid': [0, 0] }
+        maxCol = 0
         row = 0
        
         #print(f"Creating layout {layout}")
         grid = QGridLayout()
         
-        imgPerRow = int( self.width / ( self.iconSize + 15 ) )
+        maxCol = int( self.width / ( self.iconSize + 15 ) )
         
         #print(f"Generating button for directory\n  {current_path}")
         row = 0
@@ -121,13 +121,25 @@ class MainWindow(QMainWindow):
             
             #print(f"\tAdd to layout '{layout}'")
             grid.addWidget(button, row, column)
+            #print(f"{maxCol} grid.addWidget(button, {row}, {column})")
 
             # Adapt grid to window width
             column += 1
-            if column >= imgPerRow:
+            if column >= maxCol:
                 column = 0
                 row += 1
         
+        # Complete last column by empty buttons
+        if column < maxCol:
+            img = os.path.join( self.imgDirectory, 'empty.png' )
+            for i in range(column, maxCol):
+                button = QToolButton()
+                button.setIcon( QtGui.QIcon(img) )
+                button.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
+                grid.addWidget(button)
+                pass
+            
+            
         self.tabWidget.addNewTab( grid, layout, self.imgDirectory )
         
     """
