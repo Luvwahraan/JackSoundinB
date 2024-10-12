@@ -25,7 +25,6 @@ class DirsTabWidget(QWidget):
         
         icon = False
         if icons_path:
-            print(icons_path)
             img = f"{icons_path}/{tab_name}.png"
             if os.path.exists(img):
                 icon = QtGui.QIcon(img)
