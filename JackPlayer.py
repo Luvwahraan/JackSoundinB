@@ -23,5 +23,5 @@ class JackPlayer(QRunnable):
     @Slot()
     def run(self):
         self.signals.started.emit(self.n)
-        os.system(f"jack-play -un SoundBoard_{self.n} '{self.soundfile}'")
+        os.system(f"jack-play -un JackSoundinB_{self.n} '{self.soundfile}'")
         self.signals.completed.emit(self.n)
