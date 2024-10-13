@@ -40,7 +40,12 @@ class MainWindow(QMainWindow):
         self.players = []
         self.pool = QThreadPool.globalInstance()
         
+        
         self.tabWidget = DirsTabWidget(self)
+        
+        # jack channels status
+        for i in range(0, self.maxPlayers):
+            self.tabWidget.addChannel(i)
         
         self.walkInSoundBank(self.soundDirectory)
         
@@ -148,9 +153,11 @@ class MainWindow(QMainWindow):
     def startedPlayer(self, n):
         print(f"Started player {n}")
         self.players.append(n)
+        self.tabWidget.fillChannel(n)
     def finishedPlayer(self, n):
         print(f"Finished player {n}")
         self.players.remove(n)
+        self.tabWidget.freeChannel(n)
     
     def playSoundSignal(self, soundfile):
         def playSound():
@@ -164,9 +171,13 @@ class MainWindow(QMainWindow):
                 print('No free player for sound')
         return playSound
 
-
-app = QApplication([])
-w = MainWindow('/home/luvwahraan/NFS/Musique/SoundBank/')
-app.exec()
+try:
+    app = QApplication([])
+    w = MainWindow('/home/luvwahraan/NFS/Musique/SoundBank/')
+    app.exec()
+except KeyboardInterrupt:
+    print('\nInterrupted by user')
+except Exception as e:
+    print(type(e).__name__ + ': ' + str(e))
 
 
