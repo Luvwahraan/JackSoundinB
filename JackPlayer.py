@@ -4,8 +4,8 @@ from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 import os
 
 class Signals(QObject):
-    started = Signal(int)
-    completed = Signal(int)
+    started = Signal(int, str)
+    completed = Signal(int, str)
 
 """
 Get a soundfile and plays it throut jackd
@@ -22,6 +22,6 @@ class JackPlayer(QRunnable):
         
     @Slot()
     def run(self):
-        self.signals.started.emit(self.n)
+        self.signals.started.emit(self.n, self.soundfile)
         os.system(f"jack-play -un JackSoundinB_{self.n} '{self.soundfile}'")
-        self.signals.completed.emit(self.n)
+        self.signals.completed.emit(self.n, self.soundfile)
