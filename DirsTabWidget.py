@@ -29,7 +29,8 @@ class DirsTabWidget(QWidget):
         # title, formatted
         #label.setTextFormat(QtCore.Qt.RichText)
         title = QLabel(f"Channel {channel_nb}")
-        title.setStyleSheet('color: darkgreen; font-size: 1.2em;')
+        title.setStyleSheet('color: darkgreen; font-size: 16px;')
+        title.setFixedWidth(150)
         self.statusTitles.append(title)
 
         # status, raw
@@ -41,10 +42,10 @@ class DirsTabWidget(QWidget):
 
     def fillChannel(self, channel_nb, text='full'):
         self.statusLabels[channel_nb].setText(f"{text}")
-        self.statusTitles[channel_nb].setStyleSheet('color: red; font-size: 1.2em;')
+        self.statusTitles[channel_nb].setStyleSheet('color: red; font-size: 16px;')
     def freeChannel(self, channel_nb, text=''):
         self.fillChannel(channel_nb, f"{text}")
-        self.statusTitles[channel_nb].setStyleSheet('color: darkgreen; font-size: 1.2em;')
+        self.statusTitles[channel_nb].setStyleSheet('color: darkgreen; font-size: 16px;')
     
     def addNewTab(self, layout, tab_name, icons_path=False):
         newTab = QWidget()
