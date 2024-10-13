@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(2520, 1080, self.width, 500)
         #self.setIcon('icons/mix.png')
         
-        self.iconSize = 80
+        self.iconSize = 50
         
         self.soundDirectory = sound_directory
         self.imgDirectory = os.path.join(self.soundDirectory, 'icons')
@@ -99,6 +99,8 @@ class MainWindow(QMainWindow):
        
         #print(f"Creating layout {layout}")
         grid = QGridLayout()
+        grid.setSpacing(0)
+        grid.setContentsMargins(0, 0, 0, 0)
         
         maxCol = int( self.width / ( self.iconSize + 15 ) )
         
