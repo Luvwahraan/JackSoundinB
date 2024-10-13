@@ -7,11 +7,11 @@ from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 import threading
 
 class Signals(QObject):
-    started = Signal(int)
-    completed = Signal(int)
+    started = Signal(int, str)
+    completed = Signal(int, str)
 
 class JackPlayer(QRunnable):
-    def __init__(self, n, sf_path, clientname='JackSoundinB', buffersize=4096):
+    def __init__(self, n, sf_path, clientname='JackSoundinB', buffersize=16):
         super().__init__()
         self.n = n
         self.soundfilename = sf_path
@@ -32,7 +32,7 @@ class JackPlayer(QRunnable):
 
     @Slot()
     def run(self):
-        self.signals.started.emit(self.n)
+        self.signals.started.emit(self.n, self.soundfilename)
         
         try:
             with sf.SoundFile(self.soundfilename) as f:
@@ -55,7 +55,7 @@ class JackPlayer(QRunnable):
                     self.q.put(None, timeout=timeout)
                     self.event.wait()
                 
-            self.signals.completed.emit(self.n)
+            self.signals.completed.emit(self.n, self.soundfilename)
 
         except Exception as e:
             print(f"Error: {e}")
@@ -73,9 +73,12 @@ class JackPlayer(QRunnable):
         if data is None:
             self.stop_callback()
         else:
-            # audio data to jack ports
-            for channel, port in zip(data.T, self.client.outports):
-                port.get_array()[:] = channel
+            try:
+                # audio data to jack ports
+                for channel, port in zip(data.T, self.client.outports):
+                    port.get_array()[:] = channel
+            except Exception as e:
+                print( type(e).__name__ + ': ' + str(e) )
 
 
     def xrun(self, delay):
@@ -88,7 +91,10 @@ class JackPlayer(QRunnable):
     def stop_callback(self, msg=''):
         if msg:
             print(f"Error : {msg}")
+
         for port in self.client.outports:
             port.get_array().fill(0)
         self.event.set()
+        
         raise jack.CallbackExit
+        

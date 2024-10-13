@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(2520, 1080, self.width, 500)
         #self.setIcon('icons/mix.png')
         
-        self.iconSize = 80
+        self.iconSize = 50
         
         self.soundDirectory = sound_directory
         self.imgDirectory = os.path.join(self.soundDirectory, 'icons')
@@ -40,7 +40,12 @@ class MainWindow(QMainWindow):
         self.players = []
         self.pool = QThreadPool.globalInstance()
         
+        
         self.tabWidget = DirsTabWidget(self)
+        
+        # jack channels status
+        for i in range(0, self.maxPlayers):
+            self.tabWidget.addChannel(i)
         
         self.walkInSoundBank(self.soundDirectory)
         
@@ -89,17 +94,17 @@ class MainWindow(QMainWindow):
     """
     def generateButtons(self, current_path, filenames, layout):
         #coord = { 'grid': [0, 0] }
-        maxCol = 0
-        row = 0
+
        
         #print(f"Creating layout {layout}")
         grid = QGridLayout()
+        grid.setSpacing(0)
+        grid.setContentsMargins(0, 0, 0, 0)
         
         maxCol = int( self.width / ( self.iconSize + 15 ) )
-        
-        #print(f"Generating button for directory\n  {current_path}")
         row = 0
         column = 0
+
         for sf in filenames:
             filename,ext = os.path.splitext( sf )
             soundfile = os.path.join(current_path, sf)
@@ -134,6 +139,7 @@ class MainWindow(QMainWindow):
             img = os.path.join( self.imgDirectory, 'empty.png' )
             for i in range(column, maxCol):
                 button = QToolButton()
+                button.setEnabled(False)
                 button.setIcon( QtGui.QIcon(img) )
                 button.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
                 grid.addWidget(button)
@@ -145,12 +151,15 @@ class MainWindow(QMainWindow):
     """
     Threads handles
     """
-    def startedPlayer(self, n):
-        #print(f"Started player {n}")
-        self.players.append(n)
-    def finishedPlayer(self, n):
-        #print(f"Finished player {n}")
+    def startedPlayer(self, n, sf=''):
+        print(f"Started {sf}")
+        self.players.append(n)        
+        filename = os.path.splitext( list(os.path.split( sf ))[1] )[0]
+        self.tabWidget.fillChannel(n, filename)
+    def finishedPlayer(self, n, sf=''):
+        print(f"Finished {sf}")
         self.players.remove(n)
+        self.tabWidget.freeChannel(n)
     
     def playSoundSignal(self, soundfile):
         def playSound():
@@ -164,9 +173,13 @@ class MainWindow(QMainWindow):
                 print('No free player for sound')
         return playSound
 
-
-app = QApplication([])
-w = MainWindow('/home/luvwahraan/NFS/Musique/SoundBank/')
-app.exec()
+try:
+    app = QApplication([])
+    w = MainWindow('/home/luvwahraan/NFS/Musique/SoundBank/')
+    app.exec()
+except KeyboardInterrupt:
+    print('\nInterrupted by user')
+except Exception as e:
+    print(type(e).__name__ + ': ' + str(e))
 
 
