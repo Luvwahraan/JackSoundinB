@@ -146,10 +146,10 @@ class MainWindow(QMainWindow):
     Threads handles
     """
     def startedPlayer(self, n):
-        print(f"Started player {n}")
+        #print(f"Started player {n}")
         self.players.append(n)
     def finishedPlayer(self, n):
-        print(f"Finished player {n}")
+        #print(f"Finished player {n}")
         self.players.remove(n)
     
     def playSoundSignal(self, soundfile):
