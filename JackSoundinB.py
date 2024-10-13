@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget
 from PyQt5.QtWidgets import QTabWidget
 from PyQt5.QtWidgets import QLabel, QSizePolicy
 from PyQt5.QtWidgets import QVBoxLayout, QGridLayout
-from PyQt5.QtWidgets import QToolBar, QStatusBar, QToolButton
+from PyQt5.QtWidgets import QToolBar, QPushButton, QToolButton
 
 
 from JackPlayer import *
@@ -22,13 +22,26 @@ from DirsTabWidget import *
 
 #class Window(QWidget):
 class MainWindow(QMainWindow):
-    def __init__(self, sound_directory, max_players=4):
+    
+    def clearAndQuit(self):
+        # Force all threads to terminate tasks
+        for player in range(0, self.maxPlayers):
+            self.players[player].terminate()
+        
+        print(f"Played {self.stats['played']} sounds.")
+        
+        self.close # Doesn't work??
+        
+    
+    def __init__(self, sound_directory, max_players=2, max_queue=2):
         super(MainWindow, self).__init__()
         self.setWindowTitle("JackSoundinB")
         
+        self.maxPlayers = max_players
+        self.maxQueue = max_queue
+        
         self.width = 800
         self.setGeometry(2520, 1080, self.width, 500)
-        #self.setIcon('icons/mix.png')
         
         self.iconSize = 50
         
@@ -36,10 +49,23 @@ class MainWindow(QMainWindow):
         self.imgDirectory = os.path.join(self.soundDirectory, 'icons')
         
         # Jackd players, in threads.
-        self.maxPlayers = max_players
-        self.players = []
         self.pool = QThreadPool.globalInstance()
+        self.players = []
+        self.currentPlayer = 0
         
+        self.stats = {}
+        self.stats['played'] = 0
+        
+        # Create started threads, waiting for soundfile to be queued
+        for player in range(0, self.maxPlayers):
+            print(f"Creating player {player}")
+            
+            self.players.append(JackPlayer(player, False, self.maxQueue) )
+            
+            self.players[player].signals.started.connect( self.startedSound )
+            self.players[player].signals.completed.connect( self.finishedSound )
+            
+            self.pool.start( self.players[player] )
         
         self.tabWidget = DirsTabWidget(self)
         
@@ -52,7 +78,6 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.tabWidget)
         
         self.show()
-    
     
     
     """
@@ -93,9 +118,6 @@ class MainWindow(QMainWindow):
     If an png with file's name exists, assign that image to button.
     """
     def generateButtons(self, current_path, filenames, layout):
-        #coord = { 'grid': [0, 0] }
-
-       
         #print(f"Creating layout {layout}")
         grid = QGridLayout()
         grid.setSpacing(0)
@@ -108,25 +130,19 @@ class MainWindow(QMainWindow):
         for sf in filenames:
             filename,ext = os.path.splitext( sf )
             soundfile = os.path.join(current_path, sf)
-            #print(f"\tbutton {filename}")
-            
-            #print("\tCreating button")
             button = QToolButton()
             
-            #print("\tChecking icon")
+            # Use clear icon if no one found
             img = os.path.join( self.imgDirectory, f"{filename}.png" )
             if not os.path.exists(img):
                 img = os.path.join( self.imgDirectory, 'clear.png' )
                 
             button.setIcon( QtGui.QIcon(img) )
             button.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
-            #button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             button.clicked.connect( self.playSoundSignal(soundfile) )
             button.setToolTip( filename )
             
-            #print(f"\tAdd to layout '{layout}'")
             grid.addWidget(button, row, column)
-            #print(f"{maxCol} grid.addWidget(button, {row}, {column})")
 
             # Adapt grid to window width
             column += 1
@@ -134,44 +150,48 @@ class MainWindow(QMainWindow):
                 column = 0
                 row += 1
         
-        # Complete last column by empty buttons
-        if column < maxCol:
-            img = os.path.join( self.imgDirectory, 'empty.png' )
-            for i in range(column, maxCol):
-                button = QToolButton()
-                button.setEnabled(False)
-                button.setIcon( QtGui.QIcon(img) )
-                button.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
-                grid.addWidget(button)
-                pass
-            
+        # Quit button on each directory
+        quitButton = QPushButton('Quit')
+        quitButton.clicked.connect( self.clearAndQuit )
+        grid.addWidget(quitButton)
             
         self.tabWidget.addNewTab( grid, layout, self.imgDirectory )
-        
+
+
     """
     Threads handles
     """
-    def startedPlayer(self, n, sf=''):
-        print(f"Started player {n}")
-        self.players.append(n)
-        
+    def startedSound(self, n, sf=''):
+        #self.players.append(n)        
         filename = os.path.splitext( list(os.path.split( sf ))[1] )[0]
         self.tabWidget.fillChannel(n, filename)
-    def finishedPlayer(self, n, sf=''):
-        print(f"Finished player {n}")
-        self.players.remove(n)
+        
+    def finishedSound(self, n, sf=''):
+        #self.players.remove(n)
         self.tabWidget.freeChannel(n)
     
     def playSoundSignal(self, soundfile):
         def playSound():
-            nextPlayer = len(self.players)
-            if nextPlayer < self.maxPlayers:
-                player = JackPlayer(nextPlayer, soundfile)
-                player.signals.started.connect(self.startedPlayer)
-                player.signals.completed.connect(self.finishedPlayer)
-                self.pool.start(player)
-            else:
-                print('No free player for sound')
+            try:
+                # Try each player for free queue
+                soundQueued = False
+                for timeout in range(0, self.maxPlayers):
+                    print(f"Trying to fill player {self.currentPlayer} {timeout}")
+                    soundQueued = self.players[self.currentPlayer].queueSound(soundfile)
+                    
+                    print(soundQueued)
+                    
+                    # Change next player who get soundfile
+                    self.currentPlayer += 1
+                    if self.currentPlayer >= self.maxPlayers:
+                        self.currentPlayer = 0
+                    
+                    if soundQueued:
+                        self.stats['played'] += 1
+                        break
+                
+            except Exception as e:
+                print('playSoundSignal ' + type(e).__name__ + ': ' + str(e))                
         return playSound
 
 try:
@@ -181,6 +201,6 @@ try:
 except KeyboardInterrupt:
     print('\nInterrupted by user')
 except Exception as e:
-    print(type(e).__name__ + ': ' + str(e))
+    print('JackSoundinB ' + type(e).__name__ + ': ' + str(e))
 
 
