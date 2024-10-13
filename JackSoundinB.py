@@ -32,7 +32,15 @@ class MainWindow(QMainWindow):
         
         self.close # Doesn't work??
         
+    """
+    Assumes that sound_directory contains only soundfile at one or two level depth, and
+    an "icons" dir.
     
+    max_players threads started, with a max_queue sized queue
+    
+    So max_players sound played at the same time, with (max_players - 1) x max_queue
+    soundfile waiting.
+    """
     def __init__(self, sound_directory, max_players=2, max_queue=2):
         super(MainWindow, self).__init__()
         self.setWindowTitle("JackSoundinB")
