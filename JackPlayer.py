@@ -11,7 +11,7 @@ class Signals(QObject):
     completed = Signal(int)
 
 class JackPlayer(QRunnable):
-    def __init__(self, n, sf_path, clientname='JackSoundinB', buffersize=64):
+    def __init__(self, n, sf_path, clientname='JackSoundinB', buffersize=4096):
         super().__init__()
         self.n = n
         self.soundfilename = sf_path
@@ -41,10 +41,11 @@ class JackPlayer(QRunnable):
                     self.client.outports.register(f'out_{ch + 1}')
                 
                 # fill queue for audio data
-                block_generator = f.blocks(blocksize=self.blocksize, dtype='float32', always_2d=True, fill_value=0)
+                block_generator = f.blocks( blocksize=self.blocksize, \
+                        dtype='float32', always_2d=True, fill_value=0 )
+                
                 for _, data in zip(range(self.buffersize), block_generator):
                     self.q.put_nowait(data)
-                
                 
                 with self.client:
                     timeout = self.blocksize * self.buffersize / self.samplerate
@@ -67,16 +68,18 @@ class JackPlayer(QRunnable):
             data = self.q.get_nowait()
         except queue.Empty:
             self.stop_callback('Empty buffer, increase buffersize.')
-        
+
+        # stop when playback finished
         if data is None:
             self.stop_callback()
- 
-        # audio data to jack ports
-        for channel, port in zip(data.T, self.client.outports):
-            port.get_array()[:] = channel
+        else:
+            # audio data to jack ports
+            for channel, port in zip(data.T, self.client.outports):
+                port.get_array()[:] = channel
+
 
     def xrun(self, delay):
-        print(f"Un xrun, delay : {delay}.")
+        print(f"Xrun, delay : {delay}.")
 
     def shutdown(self, status, reason):
         print(f"JACK shudown, statut : {status}, raison : {reason}.")
