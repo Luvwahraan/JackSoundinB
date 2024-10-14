@@ -22,26 +22,16 @@ from DirsTabWidget import *
 
 #class Window(QWidget):
 class MainWindow(QMainWindow):
-    
-    def clearAndQuit(self):
-        # Force all threads to terminate tasks
-        for player in range(0, self.maxPlayers):
-            self.players[player].terminate()
-        
-        print(f"Played {self.stats['played']} sounds.")
-        
-        self.close # Doesn't work??
-        
     """
     Assumes that sound_directory contains only soundfile at one or two level depth, and
     an "icons" dir.
     
     max_players threads started, with a max_queue sized queue
     
-    So max_players sound played at the same time, with (max_players - 1) x max_queue
+    So max_players sound played at the same time, with max_players x max_queue
     soundfile waiting.
     """
-    def __init__(self, sound_directory, max_players=2, max_queue=2):
+    def __init__(self, sound_directory, max_players=4, max_queue=3):
         super(MainWindow, self).__init__()
         self.setWindowTitle("JackSoundinB")
         
@@ -51,6 +41,7 @@ class MainWindow(QMainWindow):
         self.width = 800
         self.setGeometry(2520, 1080, self.width, 500)
         
+        # 50 px is fine with my 24" touch screen (:
         self.iconSize = 50
         
         self.soundDirectory = sound_directory
@@ -66,8 +57,6 @@ class MainWindow(QMainWindow):
         
         # Create started threads, waiting for soundfile to be queued
         for player in range(0, self.maxPlayers):
-            print(f"Creating player {player}")
-            
             self.players.append(JackPlayer(player, False, self.maxQueue) )
             
             self.players[player].signals.started.connect( self.startedSound )
@@ -75,7 +64,7 @@ class MainWindow(QMainWindow):
             
             self.pool.start( self.players[player] )
         
-        self.tabWidget = DirsTabWidget(self)
+        self.tabWidget = DirsTabWidget(self, (self.maxQueue*self.maxPlayers) )
         
         # jack channels status
         for i in range(0, self.maxPlayers):
@@ -131,7 +120,7 @@ class MainWindow(QMainWindow):
         grid.setSpacing(0)
         grid.setContentsMargins(0, 0, 0, 0)
         
-        maxCol = int( self.width / ( self.iconSize + 15 ) )
+        maxCol = 12 #int( self.width / ( self.iconSize + 15 ) )
         row = 0
         column = 0
 
@@ -159,20 +148,36 @@ class MainWindow(QMainWindow):
                 row += 1
         
         # Quit button on each directory
-        quitButton = QPushButton('Quit')
+        quitButton = QToolButton()
+        quitButton.setToolTip('Quit')
+        img = os.path.join( self.imgDirectory, 'Emerg_Switch.png' )
+        quitButton.setIcon( QtGui.QIcon(img) )
+        quitButton.setIconSize( QtCore.QSize(self.iconSize, self.iconSize) )
         quitButton.clicked.connect( self.clearAndQuit )
-        grid.addWidget(quitButton)
+        grid.addWidget(quitButton, row+1, 0)
             
         self.tabWidget.addNewTab( grid, layout, self.imgDirectory )
+
+    
+    def clearAndQuit(self):
+        # Force all threads to terminate tasks
+        for player in range(0, self.maxPlayers):
+            self.players[player].terminate()
+        
+        print(f"Played {self.stats['played']} sounds.")
+        
+        self.close # Doesn't work??
 
 
     """
     Threads handles
     """
     def startedSound(self, n, sf=''):
-        #self.players.append(n)        
+        # Remove from queue label, add to play channel label
         filename = os.path.splitext( list(os.path.split( sf ))[1] )[0]
+        self.tabWidget.removeSoundInQueue(filename)
         self.tabWidget.fillChannel(n, filename)
+        self.stats['played'] += 1
         
     def finishedSound(self, n, sf=''):
         #self.players.remove(n)
@@ -184,10 +189,7 @@ class MainWindow(QMainWindow):
                 # Try each player for free queue
                 soundQueued = False
                 for timeout in range(0, self.maxPlayers):
-                    print(f"Trying to fill player {self.currentPlayer} {timeout}")
                     soundQueued = self.players[self.currentPlayer].queueSound(soundfile)
-                    
-                    print(soundQueued)
                     
                     # Change next player who get soundfile
                     self.currentPlayer += 1
@@ -195,7 +197,9 @@ class MainWindow(QMainWindow):
                         self.currentPlayer = 0
                     
                     if soundQueued:
-                        self.stats['played'] += 1
+                        # Update visual queue                        
+                        filename = os.path.splitext( list(os.path.split( soundfile ))[1] )[0]
+                        self.tabWidget.addSoundInQueue(filename)
                         break
                 
             except Exception as e:
